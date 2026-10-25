@@ -1,0 +1,51 @@
+name: Build jar
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 9.2.0
+      - name: Build
+        run: gradle build --no-daemon
+      - name: Upload jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: nitro-client-jar
+          path: |
+            build/libs/*.jar
+            !build/libs/*-sources.jar
+
+      - name: Dump Minecraft signatures
+        if: always()
+        continue-on-error: true
+        run: |
+          mkdir -p dump
+          find ~/.gradle -name '*.jar' -size +5M 2>/dev/null | grep -i 'yarn\|minecraft' | grep -vi 'sources' > dump/jars.txt || true
+          J=$(grep -i 'yarn' dump/jars.txt | head -1)
+          [ -z "$J" ] && J=$(head -1 dump/jars.txt)
+          echo "using $J" > dump/info.txt
+          unzip -l "$J" | awk '{print $4}' | grep -E 'Sky|Fog|Environment|Atmosphere|Camera|PositionedSoundInstance|PlayerSkinDrawer|DefaultSkinHelper|ClientWorld|WorldRenderer' > dump/classes.txt || true
+          for c in net.minecraft.client.world.ClientWorld net.minecraft.client.render.WorldRenderer net.minecraft.client.render.Camera \
+                   net.minecraft.entity.Entity net.minecraft.client.sound.PositionedSoundInstance net.minecraft.client.gui.PlayerSkinDrawer \
+                   net.minecraft.client.util.DefaultSkinHelper net.minecraft.client.render.SkyRendering net.minecraft.client.render.fog.FogRenderer \
+                   net.minecraft.client.render.BackgroundRenderer net.minecraft.world.attribute.EnvironmentAttributes; do
+            echo "=== $c" >> dump/signatures.txt
+            javap -p -cp "$J" "$c" >> dump/signatures.txt 2>&1 || true
+          done
+      - name: Upload signatures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nitro-signatures
+          path: dump/
+          if-no-files-found: ignore
