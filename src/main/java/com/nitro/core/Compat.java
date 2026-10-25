@@ -26,9 +26,10 @@ public final class Compat {
     public static UUID id(GameProfile p) { return p.id(); }
 
     /** Soft glassy chime used for menu hover/click (amethyst). If it fails to compile, make the body empty. */
-    public static void chime(float pitch, float volume) {
+       public static void chime(float pitch, float volume) {
+        if (volume <= 0.02f) return;
         MinecraftClient.getInstance().getSoundManager().play(
-            PositionedSoundInstance.master(Registries.SOUND_EVENT.getEntry(SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME), Math.max(0.5f, Math.min(2f, pitch)), volume));
+            PositionedSoundInstance.master(Registries.SOUND_EVENT.getEntry(SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME), Math.max(0.5f, Math.min(2f, pitch))));
     }
 
     /**
